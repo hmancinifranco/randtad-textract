@@ -1,15 +1,82 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: AWS SAM template for textract integration
-Parameters:
-  InvoicesBucket:
-    Type: String
-    Default: facturas-tesoro-lab
+Description: AWS SAM template for CV Processing with Textract and Web Hosting
+
 Resources:
-  InvoiceLambdaExecutionRole:
+  # S3 Bucket para Web Hosting
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub cv-processor-web-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcesses: false
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET]
+            AllowedOrigins: ['*']
+            MaxAge: 3000
+
+  # Bucket Policy para restringir acceso solo desde CloudFront
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Statement:
+          - Sid: AllowCloudFrontAccess
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub ${WebsiteBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${WebsiteDistribution}
+
+  # CloudFront Distribution
+  WebsiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !Select [2, !Split ['/', !GetAtt WebsiteBucket.WebsiteURL]]
+            Id: S3Origin
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginSSLProtocols: [TLSv1.2]
+        Enabled: true
+        DefaultRootObject: index.html
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          DefaultTTL: 86400
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+        HttpVersion: http2
+        IPV6Enabled: true
+
+  # Lambda Role (existente, actualizado)
+  CVProcessLambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: InvoiceLambdaExecutionRole
+      RoleName: CVProcessLambdaExecutionRole
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -25,7 +92,7 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - textract:AnalyzeExpense
+                  - textract:AnalyzeDocument
                 Resource: '*'
         - PolicyName: AllowLambdaActions
           PolicyDocument:
@@ -45,45 +112,46 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: '*'
-  TextractFunction:
+
+  # Lambda Function (existente)
+  CVProcessFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: TextractFunction
+      FunctionName: CVProcessFunction
       Handler: app.lambda_handler
       Runtime: python3.12
       CodeUri: ./lambda
       Timeout: 30
-      Environment:
-        Variables:
-          INVOICES_BUCKET: !Sub ${InvoicesBucket}
-      Role: !GetAtt InvoiceLambdaExecutionRole.Arn
+      Role: !GetAtt CVProcessLambdaExecutionRole.Arn
       Layers:
         - arn:aws:lambda:us-west-2:770693421928:layer:Klayers-p312-Pillow:4
       Events:
-        ApiGatewayTextractPOSTtextract:
+        ApiGatewayPOSTcv:
           Type: Api
           Properties:
-            Path: /textract
+            Path: /process-cv
             Method: POST
-            RestApiId: !Ref ApiGatewayTextract
+            RestApiId: !Ref ApiGatewayCVProcess
       MemorySize: 3008
-  ApiGatewayTextract:
+
+  # API Gateway (existente, actualizado con CORS)
+  ApiGatewayCVProcess:
     Type: AWS::Serverless::Api
     Properties:
       Name: !Sub
         - ${ResourceName} From Stack ${AWS::StackName}
-        - ResourceName: ApiGatewayTextract
+        - ResourceName: ApiGatewayCVProcess
       StageName: prod
       DefinitionBody:
         openapi: '3.0'
         info: {}
         paths:
-          /textract:
+          /process-cv:
             post:
               x-amazon-apigateway-integration:
                 httpMethod: POST
                 type: aws_proxy
-                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TextractFunction.Arn}/invocations
+                uri: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CVProcessFunction.Arn}/invocations
               responses:
                 '200':
                   description: Default response for CORS method
@@ -98,15 +166,66 @@ Resources:
                       schema:
                         type: string
                   content: {}
+            options:
+              summary: CORS support
+              description: Enable CORS by returning correct headers
+              responses:
+                '200':
+                  description: Default response for CORS method
+                  headers:
+                    Access-Control-Allow-Origin:
+                      schema:
+                        type: string
+                    Access-Control-Allow-Methods:
+                      schema:
+                        type: string
+                    Access-Control-Allow-Headers:
+                      schema:
+                        type: string
+                  content: {}
+              x-amazon-apigateway-integration:
+                type: mock
+                requestTemplates:
+                  application/json: '{"statusCode": 200}'
+                responses:
+                  default:
+                    statusCode: 200
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+                      method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
       EndpointConfiguration: REGIONAL
       TracingEnabled: true
       Cors:
-        MaxAge: 5
-        AllowOrigin: '''*'''
-        AllowHeaders: '''Access-Control-Allow-Origin,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'''
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+        MaxAge: 300
+      BinaryMediaTypes:
+        - application/pdf
+        - application/octet-stream
+
 Outputs:
-  ApiGatewayEndpoint:
-    Description: Endpoint URL of the API Gateway
-    Value: !Sub https://${ApiGatewayTextract}.execute-api.${AWS::Region}.amazonaws.com/prod/textract
+  WebsiteURL:
+    Description: URL for website hosted on S3
+    Value: !GetAtt WebsiteBucket.WebsiteURL
     Export:
-      Name: ApiGatewayEndpoint
+      Name: WebsiteURL
+
+  CloudFrontURL:
+    Description: URL for CloudFront distribution
+    Value: !Sub https://${WebsiteDistribution.DomainName}
+    Export:
+      Name: CloudFrontURL
+
+  ApiEndpoint:
+    Description: API Gateway endpoint URL for CV Processing
+    Value: !Sub https://${ApiGatewayCVProcess}.execute-api.${AWS::Region}.amazonaws.com/prod/process-cv
+    Export:
+      Name: CVProcessApiEndpoint
+
+  BucketName:
+    Description: Name of S3 bucket to hold website content
+    Value: !Ref WebsiteBucket
+    Export:
+      Name: WebsiteBucketName
