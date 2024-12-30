@@ -9,7 +9,7 @@ Resources:
     Properties:
       BucketName: !Sub cv-processor-web-${AWS::AccountId}-${AWS::Region}
       PublicAccessBlockConfiguration:
-        BlockPublicAcesses: false
+        BlockPublicAcls: true    # Corregido el nombre de la propiedad
         IgnorePublicAcls: true
         BlockPublicPolicy: true
         RestrictPublicBuckets: true
@@ -23,6 +23,15 @@ Resources:
             AllowedOrigins: ['*']
             MaxAge: 3000
 
+PopplerLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: PopplerLayer
+      Description: Description of my layer
+      ContentUri: lambda/layers/poppler.zip
+      CompatibleRuntimes:
+        - python3.12
+        
   # Bucket Policy para restringir acceso solo desde CloudFront
   WebsiteBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -112,6 +121,27 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: '*'
+        - PolicyName: AllowS3Actions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: 
+                  - arn:aws:s3:::tu-bucket-nombre/*   # RENOMBRAR
+        - PolicyName: TextractAndBedrockAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - textract:AnalyzeDocument
+                  - bedrock:InvokeModel
+                Resource: 
+                  - "*"
+                  - "arn:aws:bedrock:*:*:model/amazon.nova-lite-v1:0"
 
   # Lambda Function (existente)
   CVProcessFunction:
@@ -124,7 +154,10 @@ Resources:
       Timeout: 30
       Role: !GetAtt CVProcessLambdaExecutionRole.Arn
       Layers:
-        - arn:aws:lambda:us-west-2:770693421928:layer:Klayers-p312-Pillow:4
+      - arn:aws:lambda:us-west-2:770693421928:layer:Klayers-p312-Pillow:4
+      - arn:aws:lambda:us-west-2:770693421928:layer:Klayers-p312-pdf2image:1
+      - arn:aws:lambda:us-west-2:533267341537:layer:poppler:1
+      - !Ref PopplerLayer
       Events:
         ApiGatewayPOSTcv:
           Type: Api
