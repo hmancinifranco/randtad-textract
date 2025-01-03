@@ -1,7 +1,15 @@
 // script.js
 
 // Configuración
-const API_ENDPOINT = 'https://zr0u3ubrzl.execute-api.us-west-2.amazonaws.com/prod/process-cv'; // Reemplazar con tu URL de API Gateway
+const CONFIG = {
+    API_ENDPOINT: 'https://zr0u3ubrzl.execute-api.us-west-2.amazonaws.com/prod/process-cv',
+    MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
+    TIMEOUT_DURATION: 30000, // 30 segundos
+    MESSAGE_DURATION: {
+        ERROR: 5000,
+        SUCCESS: 3000
+    }
+};
 
 // Elementos del DOM
 const elements = {
@@ -10,67 +18,75 @@ const elements = {
     processButton: document.getElementById('processButton'),
     loadingSpinner: document.getElementById('loadingSpinner'),
     form: document.getElementById('personalInfoForm'),
+    dropZone: document.getElementById('pdfInput').parentElement
 };
 
 // Estado
 let selectedFile = null;
 
-// Event Listeners
+// Inicialización
 document.addEventListener('DOMContentLoaded', initializeApp);
-elements.pdfInput.addEventListener('change', handleFileSelect);
-elements.processButton.addEventListener('click', processPDF);
 
-// Drag and Drop
-const dropZone = elements.pdfInput.parentElement;
-dropZone.addEventListener('dragover', handleDragOver);
-dropZone.addEventListener('drop', handleDrop);
-
-function initializeApp() {
-    validateFileInput();
+// Event Listeners
+function setupEventListeners() {
+    elements.pdfInput.addEventListener('change', handleFileSelect);
+    elements.processButton.addEventListener('click', processPDF);
+    elements.dropZone.addEventListener('dragover', handleDragOver);
+    elements.dropZone.addEventListener('drop', handleDrop);
+    elements.dropZone.addEventListener('dragleave', handleDragLeave);
 }
 
+function initializeApp() {
+    if (validateDOMElements()) {
+        setupEventListeners();
+        elements.processButton.disabled = true;
+    }
+}
+
+function validateDOMElements() {
+    const requiredElements = ['pdfInput', 'fileName', 'processButton', 'loadingSpinner', 'form'];
+    const missingElements = requiredElements.filter(elementId => !elements[elementId]);
+    
+    if (missingElements.length > 0) {
+        console.error('Missing required DOM elements:', missingElements);
+        return false;
+    }
+    return true;
+}
+
+// Manejadores de archivos
 function handleFileSelect(event) {
-    const file = event.target.files[0];
-    updateFileSelection(file);
+    updateFileSelection(event.target.files[0]);
 }
 
 function handleDragOver(event) {
     event.preventDefault();
     event.stopPropagation();
-    dropZone.classList.add('dragover');
+    elements.dropZone.classList.add('dragover');
+}
+
+function handleDragLeave(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    elements.dropZone.classList.remove('dragover');
 }
 
 function handleDrop(event) {
     event.preventDefault();
     event.stopPropagation();
-    dropZone.classList.remove('dragover');
+    elements.dropZone.classList.remove('dragover');
     
     const file = event.dataTransfer.files[0];
-    if (file && file.type === 'application/pdf') {
+    if (file?.type === 'application/pdf') {
         elements.pdfInput.files = event.dataTransfer.files;
         updateFileSelection(file);
     } else {
-        showError('Please upload a PDF file');
+        showError('Por favor, sube un archivo PDF');
     }
 }
 
 function updateFileSelection(file) {
-    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
-    if (!file) {
-        showError('No file selected');
-        resetForm();
-        return;
-    }
-
-    if (file.type !== 'application/pdf') {
-        showError('Please select a valid PDF file');
-        resetForm();
-        return;
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-        showError('File size exceeds 5MB limit');
+    if (!validateFile(file)) {
         resetForm();
         return;
     }
@@ -80,82 +96,116 @@ function updateFileSelection(file) {
     elements.processButton.disabled = false;
 }
 
+function validateFile(file) {
+    if (!file) {
+        showError('No se ha seleccionado ningún archivo');
+        return false;
+    }
+
+    if (file.type !== 'application/pdf') {
+        showError('Por favor, selecciona un archivo PDF válido');
+        return false;
+    }
+
+    if (file.size > CONFIG.MAX_FILE_SIZE) {
+        showError('El archivo excede el límite de 5MB');
+        return false;
+    }
+
+    return true;
+}
+
+// Procesamiento del PDF
 async function processPDF() {
     if (!selectedFile) {
-        showError('Please select a PDF file first');
+        showError('Por favor, selecciona un archivo PDF primero');
         return;
     }
 
     try {
         showLoading(true);
-        
-        // Convertir PDF a base64
         const base64Data = await convertToBase64(selectedFile);
-        // Extraer solo la parte de datos base64 (eliminar el prefijo data:application/pdf;base64,)
         const base64Clean = base64Data.split(',')[1];
         
-        // Llamar a la API
-        const response = await fetch(API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
+        const response = await fetchWithTimeout(
+            CONFIG.API_ENDPOINT,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ file: base64Clean })
             },
-            body: JSON.stringify({
-                file: base64Clean // Cambiar base64_pdf por file
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Error: ${errorData.message || response.statusText}`);
-        }
+            CONFIG.TIMEOUT_DURATION
+        );
 
         const data = await response.json();
         
-        // Verificar que data.personalInfo existe
         if (!data.personalInfo) {
-            throw new Error('Invalid response format from server');
+            throw new Error('Formato de respuesta inválido del servidor');
         }
         
-        // Actualizar el formulario con la información extraída
         updateForm(data.personalInfo);
-        showSuccess('CV processed successfully!');
+        showSuccess('CV procesado exitosamente');
 
     } catch (error) {
-        console.error('Error processing PDF:', error);
-        showError(`Error processing PDF: ${error.message}`);
+        handleProcessError(error);
     } finally {
         showLoading(false);
     }
 }
 
+async function fetchWithTimeout(resource, options, timeout) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+        const response = await fetch(resource, {
+            ...options,
+            signal: controller.signal
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        return response;
+    } finally {
+        clearTimeout(id);
+    }
+}
+
+// Actualización del formulario
 function updateForm(personalInfo) {
-    // Mapear los campos del formulario con la información extraída
     const fieldMappings = {
-        'name': personalInfo.fullname || '',
-        'phone': personalInfo.phone_number || '',
-        'address': personalInfo.address || '',
+        'firstName': personalInfo.firstname || '',
+        'lastName': personalInfo.lastname || '',
         'email': personalInfo.email || '',
-        'zipCode': personalInfo.zip_code || ''
+        'documentType': personalInfo.document_type || '',
+        'birthCountry': personalInfo.birth_country || '',
+        'birthDate': personalInfo.birth_date || '',
+        'gender': personalInfo.gender || '',
+        'phone': personalInfo.phone_number || '',
+        'residenceCountry': personalInfo.residence_country || '',
+        'province': personalInfo.province || '',
+        'city': personalInfo.city || '',
+        'zipCode': personalInfo.zip_code || '',
+        'address': personalInfo.address || ''
     };
 
-    // Actualizar cada campo del formulario
     Object.entries(fieldMappings).forEach(([fieldId, value]) => {
         const input = document.getElementById(fieldId);
         if (input) {
             input.value = value;
-            // Efecto visual para mostrar que el campo se ha actualizado
-            input.classList.add('updated');
-            setTimeout(() => input.classList.remove('updated'), 1000);
+            highlightUpdatedField(input);
         }
     });
 }
 
+// Utilidades
 function convertToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
+        reader.onerror = reject;
         reader.readAsDataURL(file);
     });
 }
@@ -163,69 +213,54 @@ function convertToBase64(file) {
 function showLoading(show) {
     elements.loadingSpinner.classList.toggle('hidden', !show);
     elements.processButton.disabled = show;
+    elements.processButton.textContent = show ? 'Procesando...' : 'Procesar CV';
+}
+
+function handleProcessError(error) {
+    const errorMessage = error.name === 'AbortError' 
+        ? 'La solicitud ha excedido el tiempo límite. Por favor, intenta de nuevo.'
+        : `Error al procesar el PDF: ${error.message}`;
+    
+    console.error('Error processing PDF:', error);
+    showError(errorMessage);
+}
+
+function showMessage(message, type) {
+    const messageDiv = document.getElementById(`${type}Message`) || 
+                      createMessageElement(type);
+    messageDiv.textContent = message;
+    messageDiv.classList.remove('hidden');
+    
+    setTimeout(() => {
+        messageDiv.classList.add('hidden');
+    }, CONFIG.MESSAGE_DURATION[type.toUpperCase()]);
 }
 
 function showError(message) {
-    // Crear o usar un elemento para mostrar errores
-    const errorDiv = document.getElementById('errorMessage') || createErrorElement();
-    errorDiv.textContent = message;
-    errorDiv.classList.remove('hidden');
-    
-    // Ocultar el mensaje después de 5 segundos
-    setTimeout(() => {
-        errorDiv.classList.add('hidden');
-    }, 5000);
-}
-
-function createErrorElement() {
-    const errorDiv = document.createElement('div');
-    errorDiv.id = 'errorMessage';
-    errorDiv.className = 'error-message';
-    document.body.appendChild(errorDiv);
-    return errorDiv;
+    showMessage(message, 'error');
 }
 
 function showSuccess(message) {
-    const successDiv = document.getElementById('successMessage') || createSuccessElement();
-    successDiv.textContent = message;
-    successDiv.classList.remove('hidden');
-    
-    setTimeout(() => {
-        successDiv.classList.add('hidden');
-    }, 3000);
+    showMessage(message, 'success');
 }
 
-function createSuccessElement() {
-    const successDiv = document.createElement('div');
-    successDiv.id = 'successMessage';
-    successDiv.className = 'success-message';
-    document.body.appendChild(successDiv);
-    return successDiv;
+function createMessageElement(type) {
+    const div = document.createElement('div');
+    div.id = `${type}Message`;
+    div.className = `${type}-message`;
+    document.body.appendChild(div);
+    return div;
 }
 
-function showSuccessMessage() {
-    const successMessage = document.getElementById('successMessage');
-    successMessage.classList.remove('hidden');
-    
-    // Automatically hide the message after 3 seconds
-    setTimeout(() => {
-        successMessage.classList.add('hidden');
-    }, 3000);
+function highlightUpdatedField(input) {
+    input.classList.add('updated');
+    setTimeout(() => input.classList.remove('updated'), 1000);
 }
-
-// Call this function when the PDF is successfully uploaded
-document.getElementById('pdfInput').addEventListener('change', function(event) {
-    if (event.target.files.length > 0) {
-        showSuccessMessage();
-        // Enable process button
-        document.getElementById('processButton').disabled = false;
-    }
-});
-
 
 function resetForm() {
     selectedFile = null;
     elements.fileName.textContent = '';
     elements.processButton.disabled = true;
     elements.form.reset();
+    elements.pdfInput.value = '';
 }
