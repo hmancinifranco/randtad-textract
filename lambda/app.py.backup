@@ -6,13 +6,6 @@ from datetime import datetime
 from pdf2image import convert_from_bytes
 from io import BytesIO
 from PIL import Image
-import uuid
-from botocore.exceptions import ClientError
-
-s3 = boto3.client('s3')
-sqs = boto3.client('sqs')
-S3_BUCKET = 'cv-preprocess-landing'
-QUEUE_URL = 'https://sqs.us-west-2.amazonaws.com/533267341537/LambdaCandidatesStep1'
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -196,50 +189,6 @@ def lambda_handler(event, context):
                 'extracted_info': extracted_info
             })
             
-            # Generar ID único para el documento
-            document_id = str(uuid.uuid4())
-            
-            # Preparar contenido para S3
-            s3_key = f"cv_extractions/{datetime.utcnow().strftime('%Y/%m/%d')}/{document_id}.json"
-            
-            s3_content = {
-                'extracted_info': extracted_info,
-                'raw_text': formatted_text,
-                'timestamp': datetime.utcnow().isoformat()
-            }
-
-
-            
-            try:
-                # Subir a S3
-                s3.put_object(
-                    Bucket=S3_BUCKET,
-                    Key=s3_key,
-                    Body=json.dumps(s3_content)
-                )
-                
-                # Preparar y enviar mensaje a SQS
-                sqs_message = {
-                    'document_id': document_id,
-                    's3_bucket': S3_BUCKET,
-                    's3_key': s3_key,
-                    'timestamp': datetime.utcnow().isoformat()
-                }
-                
-                sqs.send_message(
-                    QueueUrl=QUEUE_URL,
-                    MessageBody=json.dumps(sqs_message)
-                )
-                
-                log_event('Document saved to S3 and message sent to SQS', {
-                    'document_id': document_id,
-                    's3_key': s3_key
-                })
-                
-            except ClientError as e:
-                log_event('Error saving to S3 or sending to SQS', error=e)
-                # No fallamos la respuesta principal si falla el guardado
-            
         except Exception as e:
             log_event('Error processing Bedrock response', {
                 'error_type': type(e).__name__,
@@ -262,8 +211,7 @@ def lambda_handler(event, context):
             },
             'body': json.dumps({
                 'personalInfo': extracted_info,
-                'rawText': formatted_text[:500],
-                'document_id': document_id if 'document_id' in locals() else None
+                'rawText': formatted_text[:500]
             })
         }
         
