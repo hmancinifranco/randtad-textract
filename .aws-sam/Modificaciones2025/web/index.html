@@ -3,13 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CV Information Extractor</title>
+    <title>Mi Randstad</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="shortcut icon" href="data:image/x-icon;base64,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" />
 </head>
 <body>
+<!-- Banner con SVG logo -->
+<div class="banner">
+    <div class="logo-container">
+        <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 205 30.64">
+            <title>randstad</title>
+            <path d="M15.95,30.32H20.5V18.87a2.26,2.26,0,0,0-.67-1.62l-6.75-6.75a2.25,2.25,0,0,0-1.62-.67H0v4.56H12.53a3.42,3.42,0,0,1,3.42,3.42Z" transform="translate(0 -0.18)"></path>
+            <path d="M27.28,30.32H22.72V18.87a2.26,2.26,0,0,1,.67-1.62l6.75-6.75a2.25,2.25,0,0,1,1.62-.67H43.22v4.56H30.69a3.42,3.42,0,0,0-3.42,3.42Z" transform="translate(0 -0.18)"></path>
+            <path d="M63.8,9.82h3.52V13h.08a6.24,6.24,0,0,1,5.34-3.66,10.69,10.69,0,0,1,2.49.28V13a5.6,5.6,0,0,0-2.09-.36c-3.38,0-5.59,3.22-5.59,8.37v9.33H63.8Z" transform="translate(0 -0.18)"></path>
+            <path d="M179.24,22.35c0,3.09-2,5.44-5.7,5.44-1.72,0-3.81-1.18-3.81-3.36,0-3.65,5.06-4,7.1-4,.8,0,1.6.08,2.41.08Zm-11-7.87a9.52,9.52,0,0,1,5.94-2.13c3.77,0,5.05,1.84,5.05,5.38-1.48-.08-2.53-.08-4-.08-3.89,0-9.52,1.6-9.52,6.75,0,4.5,3.1,6.42,7.51,6.42a7.6,7.6,0,0,0,6.34-3.11h.08v2.61H183V17.79c0-5.6-2.36-8.47-8.21-8.47A13.1,13.1,0,0,0,168,11.24Z" transform="translate(0 -0.18)"></path>
+            <path d="M88,22.35c0,3.09-2,5.44-5.7,5.44-1.73,0-3.81-1.18-3.81-3.36,0-3.65,5.06-4,7.1-4,.8,0,1.6.08,2.41.08ZM77,14.48A9.52,9.52,0,0,1,83,12.35c3.77,0,5.06,1.84,5.06,5.38-1.48-.08-2.53-.08-4-.08-3.89,0-9.52,1.6-9.52,6.75,0,4.5,3.1,6.42,7.51,6.42a7.6,7.6,0,0,0,6.34-3.11h.08v2.61H91.8V17.79c0-5.6-2.36-8.47-8.21-8.47a13.1,13.1,0,0,0-6.74,1.92Z" transform="translate(0 -0.18)"></path>
+            <path d="M94.88,9.82h3.64V13h.08a7.39,7.39,0,0,1,6.73-3.72c5.31,0,7.66,3.28,7.66,8.79V30.32h-3.76V19.69c0-4.79-1-7.13-4.35-7.33-4.31,0-6.24,3.47-6.24,8.48v9.48H94.88Z" transform="translate(0 -0.18)"></path>
+            <path d="M137.55,26.33a10.06,10.06,0,0,0,4.7,1.45c1.72,0,3.85-.73,3.85-2.95,0-3.76-8.87-3.43-8.87-9.21,0-4.27,3.18-6.31,7.23-6.31a15.49,15.49,0,0,1,4.7.81l-.32,3.27a11,11,0,0,0-4-1.05c-1.92,0-3.61.81-3.61,2.51,0,4.2,8.87,3,8.87,9.58,0,4.39-3.5,6.39-7.15,6.39a11.84,11.84,0,0,1-5.62-1.12Z" transform="translate(0 -0.18)"></path>
+            <path d="M164.48,12.85h-5.43V24.11c0,2.38,1.45,3.67,3.17,3.67a4.65,4.65,0,0,0,2.57-.73v3.2a11.94,11.94,0,0,1-3.21.56c-3.89,0-6.29-1.83-6.29-5.94v-12h-4.62v-3h4.62V5.08l3.76-1.2V9.82h5.43Z" transform="translate(0 -0.18)"></path>
+            <path d="M189.56,20c-.08-3.76,1.53-7.64,5.62-7.64s6.06,3.92,6.06,7.76c0,3.43-1.77,7.68-6,7.68C191.17,27.79,189.48,23.22,189.56,20ZM201.4,30.32H205V.18h-3.76V12.6h-.08C200,10.72,198,9.32,194.38,9.32c-5.94,0-8.84,4.85-8.84,10.37s2.61,11.13,8.8,11.13a8.22,8.22,0,0,0,7-3.36h.08Z" transform="translate(0 -0.18)"></path>
+            <path d="M119.57,20c-.08-3.76,1.53-7.64,5.62-7.64s6.06,3.92,6.06,7.76c0,3.43-1.77,7.68-6,7.68C121.17,27.79,119.48,23.22,119.57,20Zm11.84,10.33H135V.18h-3.76V12.6h-.08C130,10.72,128,9.32,124.38,9.32c-5.94,0-8.84,4.85-8.84,10.37s2.61,11.13,8.8,11.13a8.22,8.22,0,0,0,7-3.36h.08Z" transform="translate(0 -0.18)"></path>
+        </svg>
+    </div>
+</div>
+
     <div class="container">
-        <h1>CV Information Extractor</h1>
+        <h1>Datos personales de candidato</h1>
         
         <!-- Sección de carga de archivo -->
         <div class="upload-section">
@@ -17,11 +37,13 @@
                 <input type="file" id="pdfInput" accept=".pdf" />
                 <label for="pdfInput">
                     <span class="upload-icon">📄</span>
-                    <span>Choose PDF or drag here</span>
+                    <span>Carga o arrastra el CV</span>
                 </label>
             </div>
             <div id="fileName" class="file-name"></div>
-            <button id="processButton" disabled>Process CV</button>
+        </div>
+        <div class="process-button-container">
+            <button id="processButton" disabled>Procesar CV</button>
         </div>
 
         <!-- Loading Spinner (oculto por defecto) -->
@@ -53,17 +75,21 @@
                 </div>
 
                 <!-- Documentación -->
-                <div class="form-section">
-                    <h2>Documentación</h2>
-                    <div class="form-group">
-                        <label for="documentType">Tipo de documento:</label>
-                        <select id="documentType" name="documentType">
-                            <option value="">Seleccionar...</option>
-                            <option value="DNI">DNI</option>
-                            <option value="Pasaporte">Pasaporte</option>
-                        </select>
-                    </div>
-                </div>
+            <div class="form-section">
+            <h2>Documentación</h2>
+             <div class="form-group">
+            <label for="documentType">Tipo de documento:</label>
+                 <select id="documentType" name="documentType">
+            <option value="">Seleccionar...</option>
+            <option value="DNI">DNI</option>
+            <option value="Pasaporte">Pasaporte</option>
+            </select>
+        </div>
+    <div class="form-group">
+        <label for="documentNumber">Número de documento:</label>
+        <input type="text" id="documentNumber" name="documentNumber" pattern="[A-Za-z0-9]+" title="Solo letras y números permitidos">
+    </div>
+</div>
 
                 <!-- Información de Nacimiento -->
                 <div class="form-section">
@@ -126,8 +152,6 @@
 
             <!-- Botones de acción -->
             <div class="button-group">
-                <button id="editButton" type="button">Edit</button>
-                <button id="saveButton" type="button" class="hidden">Save</button>
             </div>
         </div>
     </div>

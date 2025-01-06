@@ -30,7 +30,11 @@ document.addEventListener('DOMContentLoaded', initializeApp);
 // Event Listeners
 function setupEventListeners() {
     elements.pdfInput.addEventListener('change', handleFileSelect);
-    elements.processButton.addEventListener('click', processPDF);
+    elements.processButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        processPDF();
+    });
     elements.dropZone.addEventListener('dragover', handleDragOver);
     elements.dropZone.addEventListener('drop', handleDrop);
     elements.dropZone.addEventListener('dragleave', handleDragLeave);
@@ -180,6 +184,7 @@ function updateForm(personalInfo) {
         'lastName': personalInfo.lastname || '',
         'email': personalInfo.email || '',
         'documentType': personalInfo.document_type || '',
+        'documentNumber': personalInfo.document_number || '', // Nuevo campo
         'birthCountry': personalInfo.birth_country || '',
         'birthDate': personalInfo.birth_date || '',
         'gender': personalInfo.gender || '',
@@ -211,9 +216,23 @@ function convertToBase64(file) {
 }
 
 function showLoading(show) {
-    elements.loadingSpinner.classList.toggle('hidden', !show);
-    elements.processButton.disabled = show;
-    elements.processButton.textContent = show ? 'Procesando...' : 'Procesar CV';
+    if (show) {
+        elements.loadingSpinner.classList.remove('hidden');
+        elements.processButton.disabled = true;
+        elements.processButton.textContent = 'Procesando...';
+        // Opcional: deshabilitar el formulario mientras procesa
+        Array.from(elements.form.elements).forEach(element => {
+            element.disabled = true;
+        });
+    } else {
+        elements.loadingSpinner.classList.add('hidden');
+        elements.processButton.disabled = false;
+        elements.processButton.textContent = 'Procesar CV';
+        // Opcional: habilitar el formulario cuando termine
+        Array.from(elements.form.elements).forEach(element => {
+            element.disabled = false;
+        });
+    }
 }
 
 function handleProcessError(error) {

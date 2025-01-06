@@ -10,6 +10,42 @@
     --background-light: #f9fafb;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --components-logo-default: #2f3990;
+
+}
+
+/* Banner y Logo */
+.banner {
+    background-color: white;
+    width: 100%;
+    height: 80px; 
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+}
+
+.logo-container {
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.logo {
+    height: 24px;
+    width: auto;
+    fill: var(--components-logo-default); 
+    -o-object-fit: contain;
+    object-fit: contain;
+}
+
+/* Ajustar el contenedor principal para que no se oculte detrás del banner */
+.container {
+    margin-top: 100px; /
 }
 
 body {
@@ -34,31 +70,55 @@ body {
     text-align: center;
 }
 
+/* Contenedor del área de upload */
+.file-upload {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+/* Ocultar el input file pero mantener su funcionalidad */
+.file-upload input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+    top: 0;
+    left: 0;
+}
+
+/* Mejorar el estilo del label que actúa como el botón visible */
 .file-upload label {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     padding: 2rem;
-    border: 2px dashed var(--border-color);
+    border: 2px dashed var(--border-color, #e5e7eb);
     border-radius: 8px;
-    background-color: var(--background-light);
-    transition: all 0.2s ease;
+    background-color: var(--background-light, #f9fafb);
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
-.hidden {
-    display: none !important;
-}
-
-.file-upload label:hover,
-.file-upload label.dragover {
-    border-color: var(--primary-color);
-    background-color: rgba(37, 99, 235, 0.05);
+/* Efectos hover y dragover */
+.file-upload:hover label,
+.file-upload.dragover label {
+    border-color: var(--components-logo-default);
+    background-color: rgba(47, 57, 144, 0.05);
 }
 
 .upload-icon {
     font-size: 2rem;
     margin-bottom: 1rem;
-    color: var(--primary-color);
+    color: var(--components-logo-default);
+}
+
+/* Contenedor del botón process */
+.process-button-container {
+    text-align: center;
+    margin: 1rem 0;
 }
 
 /* Mejoras en el formulario */
@@ -144,22 +204,37 @@ button:disabled {
     color: white;
 }
 
-/* Mejoras en el spinner */
+/*  spinner */
 .loading-spinner {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
-    margin: 2rem 0;
+    justify-content: center;
+    margin: 20px 0;
 }
 
 .spinner {
-    width: 2.5rem;
-    height: 2.5rem;
-    border: 3px solid var(--border-color);
-    border-top: 3px solid var(--primary-color);
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-color, #2563eb);
     border-radius: 50%;
     animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-spinner p {
+    margin-top: 10px;
+    color: var(--text-color, #1f2937);
+    font-size: 14px;
+}
+
+.hidden {
+    display: none !important;
 }
 
 /* Efecto de actualización mejorado */
